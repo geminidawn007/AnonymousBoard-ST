@@ -4,12 +4,18 @@ SillyTavern 的独立扩展：一部「虚拟手机」，里面装着两个匿�
 
 ## 安装
 
-1. 解压后得到 `AnonymousBoard-ST` 文件夹。
-2. 放到 `SillyTavern/data/default-user/extensions/AnonymousBoard-ST/`（多用户时把 `default-user` 换成你的用户目录）。
-3. 刷新酒馆网页。屏幕右侧会出现一个圆角玻璃小按钮（面具对话气泡图标）。
+**推荐：在酒馆里直接安装**
+
+1. 打开酒馆顶部的「扩展 / Extensions」（三个方块的图标）→「安装扩展 / Install extension」。
+2. 粘贴这个链接，点安装：`https://github.com/geminidawn007/AnonymousBoard-ST`
+3. 装好后刷新网页，屏幕右侧会出现一个圆角玻璃小按钮（面具对话气泡图标）。
 4. 在酒馆「API 连接」里连上一个模型；或者在论坛的「設定 / Settings」→「AI 来源」里填一个独立 API。
 
-从 v0.1 升级：直接用新文件夹覆盖旧的即可。旧帖子会在第一次加载时自动迁移（旧版保存的窗口坐标不会迁移，那正是手机上窗口跑出屏幕的原因）。
+**更新**：「扩展」→「管理扩展 / Manage extensions」里找到 Anonymous Board，点更新按钮。帖子和设置都保存在浏览器里，更新不会丢。
+
+**手动安装**：在本页点 Code → Download ZIP，解压后把整个文件夹放到 `SillyTavern/data/default-user/extensions/`（多用户时把 `default-user` 换成你的用户目录），刷新酒馆。
+
+从 v0.1 升级：先删掉旧的扩展文件夹，再按上面的方法安装。旧帖子会在第一次加载时自动迁移（旧版保存的窗口坐标不会迁移，那正是手机上窗口跑出屏幕的原因）。
 
 ## 打开方式
 
@@ -160,3 +166,11 @@ SillyTavern 的独立扩展：一部「虚拟手机」，里面装着两个匿�
 - 2ch / 4chan 分开的提示词、语言、版面和帖子存储。
 - 新增：发帖时写正文（OP）、自动获取回复、新回复分隔线、楼层操作、删帖、复制整串、夜间配色、公共设定、导出导入、魔杖菜单入口、`/anonboard`、扩展面板开关。
 - 不再使用浏览器原生 `prompt()` / `confirm()` 弹窗。
+
+## 许可
+
+本项目采用 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans) 许可：可以免费下载、安装、使用，也可以原样转发分享（请注明作者和本仓库链接）；不允许商用，不允许发布修改后的版本。有建议或发现 bug，欢迎开 Issue。
+
+## English
+
+A SillyTavern extension: a virtual phone with two anonymous forums, 2ch (Japanese) and 4chan (English), whose crowd is played by your model, either SillyTavern's current connection or a separate OpenAI-compatible API. Install it from **Extensions → Install extension** by pasting `https://github.com/geminidawn007/AnonymousBoard-ST`. The settings screen is in Chinese. Licensed under CC BY-NC-ND 4.0: free to use and share unchanged with credit; no commercial use and no redistribution of modified versions.
