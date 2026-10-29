@@ -1,0 +1,10 @@
+{
+  "display_name": "Anonymous Board · RP Companion",
+  "loading_order": 80,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "ChatGPT",
+  "version": "0.2.5"
+}
