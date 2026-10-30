@@ -8,7 +8,7 @@
 if (globalThis.__anonymousBoardV2) return;
 globalThis.__anonymousBoardV2 = true;
 
-const VERSION = '0.2.5';
+const VERSION = '0.2.6';
 const KEY = 'st_anonymous_board_v2';
 const LEGACY_KEY = 'st_anonymous_board_v1';
 const MAX_POSTS = 1000;
@@ -497,23 +497,37 @@ function storySources(c) {
   return out;
 }
 
+const RX_NEXT_DAY = /第二天|次日|隔天|隔日|翌日|翌朝|次の日|明くる日|the next (?:day|morning)|next morning|the following (?:day|morning)/i;
+
 /* Newest information wins: the date from the newest source that has one, a time no older than that date,
-   and the year from the date itself or else the newest believable year anywhere (e.g. the card's scenario). */
+   and the year from the date itself or else the newest believable year anywhere (e.g. the card's scenario).
+   Messages newer than the dated one can move the day on: "第二天…" / "the next morning", or a clock time
+   earlier than the one written next to the date (21:30 on the 14th, then "早上8点" → the 15th). */
 function detectStoryTime(c) {
   const sources = storySources(c);
   let date = null, time = null;
   const years = [];
   sources.forEach((src, i) => {
     const r = scanText(src.text, src.strict);
-    if (!date && r.date) date = { ...r.date, src, i };
+    if (!date && r.date) date = { ...r.date, src, i, own: r.time };
     if (!time && r.time && !(date && date.i < i)) time = { ...r.time, src, i };
     if (r.year) years.push({ ...r.year, src, i });
   });
   let year = date?.y !== undefined ? { y: date.y, src: date.src, snippet: date.snippet } : null;
   if (!year && years.length) year = years.find(y => y.score >= 3) || years[0];
   if (!date && !time && !year) return null;
-  const info = { y: year?.y, mo: date?.mo, d: date?.d, hh: time?.hh, mm: time?.mm, notes: [] };
-  info.key = `${info.y ?? '?'}-${info.mo ?? '?'}-${info.d ?? '?'} ${info.hh ?? '?'}:${info.mm ?? '?'}`;
+  let roll = 0, rollWhy = '';
+  if (date) {
+    roll = sources.slice(0, date.i).filter(s => RX_NEXT_DAY.test(s.text)).length;
+    if (roll) rollWhy = `之后的消息里说到「第二天」，日期顺延 ${roll} 天`;
+    else if (time && time.i < date.i && date.own && time.hh * 60 + time.mm < date.own.hh * 60 + date.own.mm) {
+      roll = 1;
+      rollWhy = '之后消息里的钟点比那天写的更早，按第二天算';
+    }
+    roll = Math.min(roll, 7);
+  }
+  const info = { y: year?.y, mo: date?.mo, d: date?.d, roll, hh: time?.hh, mm: time?.mm, notes: [] };
+  info.key = `${info.y ?? '?'}-${info.mo ?? '?'}-${info.d ?? '?'}+${roll} ${info.hh ?? '?'}:${info.mm ?? '?'}`;
   const where = x => `${x.src.label}「…${x.snippet}…」`;
   if (date && time && date.src === time.src) info.notes.push(`日期和时间：${where(date)}`);
   else {
@@ -521,6 +535,7 @@ function detectStoryTime(c) {
     if (time) info.notes.push(`时间：${where(time)}`);
   }
   if (year && (!date || date.y === undefined)) info.notes.push(`年份：${where(year)}`);
+  if (roll) info.notes.push(`（${rollWhy}）`);
   const missing = [!year && '年份', !date && '月日', !time && '钟点'].filter(Boolean);
   if (missing.length) info.notes.push(`没找到${missing.join('、')}，这部分先用现实时间补上。`);
   return info;
@@ -530,7 +545,6 @@ function detectStoryTime(c) {
 /* Forum clock. Follow-story mode anchors to the detected moment and then ticks like a real clock (capped,
    so a quiet chat does not let the forum run hours ahead); a new time in the chat re-anchors it. */
 const STORY_DRIFT_MAX = 3 * 3600e3;
-const ALIGN_SLACK = 6 * 3600e3;
 const storyClock = { sig: null, info: null, anchor: null };
 
 function refreshStory(force = false) {
@@ -546,7 +560,7 @@ function refreshStory(force = false) {
   if (!info) { storyClock.anchor = null; return null; }
   if (storyClock.anchor?.key !== info.key) {
     const now = new Date();
-    const at = new Date(info.y ?? now.getFullYear(), (info.mo ?? now.getMonth() + 1) - 1, info.d ?? now.getDate(),
+    const at = new Date(info.y ?? now.getFullYear(), (info.mo ?? now.getMonth() + 1) - 1, (info.d ?? now.getDate()) + (info.roll || 0),
       info.hh ?? now.getHours(), info.mm ?? now.getMinutes(), info.hh === undefined ? now.getSeconds() : 0);
     storyClock.anchor = { key: info.key, story: at.getTime(), real: Date.now() };
   }
@@ -561,22 +575,13 @@ function forumNow(mode = S.clock.mode) {
   return a ? a.story + Math.min(Math.max(0, Date.now() - a.real), STORY_DRIFT_MAX) : Date.now();
 }
 
-/* A thread written under another clock (real-world time before this version, or before the story jumped back)
-   would sit in the forum's future. Shift it as a whole, keeping the gaps between posts. */
-function alignThread(t, now = forumNow()) {
-  const last = Math.max(Number(t.created) || 0, ...t.posts.map(p => Number(p.ts) || 0));
-  if (!(last > now + ALIGN_SLACK)) return false;
-  const shift = now - 60000 - last;
-  for (const p of t.posts) if (p.ts) p.ts += shift;
-  t.created = (Number(t.created) || last) + shift;
-  t.bumped = (Number(t.bumped) || t.created) + shift;
-  return true;
-}
-function alignVisibleThreads() {
-  const now = forumNow();
-  let moved = false;
-  for (const t of S.threads) if (t.board === S.board || t.id === S.selected) moved = alignThread(t, now) || moved;
-  if (moved) save();
+/* Posted times never change on their own: only the forum's "now" follows the story. The user can still move a
+   whole thread by hand (thread menu), e.g. one written under the real-world clock; gaps between posts are kept. */
+function shiftThread(t, delta) {
+  if (!delta) return;
+  for (const p of t.posts) if (p.ts) p.ts += delta;
+  t.created = (Number(t.created) || 0) + delta;
+  t.bumped = (Number(t.bumped) || t.created) + delta;
 }
 
 const pad2 = n => String(n).padStart(2, '0');
@@ -1042,7 +1047,6 @@ function makePost(t, { name, mail, text, you = false, uid, ts, pid }) {
 }
 
 function addUserPost(t, { name, mail, text }) {
-  if (alignThread(t)) save();
   const p = makePost(t, { name, mail, text, you: true });
   t.posts.push(p);
   S.names[t.board] = { name: bound(name, 40), mail: bound(mail, 20) };
@@ -1053,10 +1057,11 @@ function appendAiPosts(t, rows, futurePids, count) {
   const now = forumNow();
   const valid = rows.map(r => ({ r, text: normText(r.text ?? r.comment ?? r.body ?? r.content ?? '') })).filter(x => x.text).slice(0, count + 2);
   if (!valid.length) return [];
-  // Replies trickle in after the latest post: strictly increasing, spread over the time that has passed.
+  // Replies arrive around the forum's "now", never before the latest post. A thread that sat quiet while the
+  // story moved on gets its new replies at the new time instead of right after the old posts.
   const lastTs = Math.max(0, ...t.posts.map(p => p.ts || 0)) || now - valid.length * 30000;
-  const gap = clamp((now - lastTs) / valid.length, 8000, 60000); // a fresh thread still gets replies seconds apart, not milliseconds
-  let cursor = lastTs;
+  let cursor = Math.max(lastTs, now - valid.length * 45000);
+  const gap = clamp((now - cursor) / valid.length, 8000, 60000); // a fresh thread still gets replies seconds apart, not milliseconds
   const known = new Map();
   for (const p of t.posts) if (p.uid && p.uid !== t.userUid) known.set(p.uid.toLowerCase(), p.uid);
   const batch = new Map();
@@ -1107,7 +1112,6 @@ async function summon(threadId) {
   if (!t.posts.length) { toast(Lb.noPosts); return; }
   const problem = sourceProblem(Lb);
   if (problem) { toast(problem, 'error'); return; }
-  if (alignThread(t)) save();
   const run = { done: 0, total: clamp(Math.round(Number(S.count) || 5), 1, MAX_COUNT), stop: false };
   ui.busy.set(t.id, run);
   refreshBusy();
@@ -1473,11 +1477,41 @@ function editCustomBoard(forum, bd, onDone) {
   if (!ui.compact) setTimeout(() => name.focus({ preventScroll: true }), 80);
 }
 
+/* Move a whole thread in time (gaps kept): pick when its first post was written. */
+function adjustThreadTime(t) {
+  const first = Number(t.posts[0]?.ts) || Number(t.created) || forumNow();
+  const last = lastPostTs(t);
+  const input = h('input', { class: 'ab-input ab-datetime', type: 'datetime-local', step: '60', value: toLocalInput(first) });
+  const toNow = h('button', { type: 'button', class: 'ab-btn' }, '让最后一帖落在论坛现在');
+  toNow.addEventListener('click', () => { input.value = toLocalInput(forumNow() - (last - first)); });
+  const apply = () => {
+    const ts = new Date(input.value).getTime();
+    if (!Number.isFinite(ts)) { toast('请选择日期和时间', 'error'); return; }
+    shiftThread(t, Math.round((ts - first) / 60000) * 60000);
+    save();
+    closeLayer('timeedit');
+    render({ scroll: 'keep' });
+    toast(`这串从 ${fmtFull(Number(t.posts[0]?.ts) || ts)} 开始`);
+  };
+  const sheet = h('div', { class: 'ab-sheet ab-timeedit', role: 'dialog', 'aria-label': '调整这串的时间' },
+    h('div', { class: 'ab-sheet-grab', 'aria-hidden': 'true' }),
+    h('div', { class: 'ab-sheet-head' },
+      h('button', { type: 'button', class: 'ab-textbtn', onclick: () => closeLayer('timeedit') }, '取消'),
+      h('div', { class: 'ab-sheet-title' }, '调整这串的时间'),
+      h('button', { type: 'button', class: 'ab-btn ab-btn-primary', onclick: apply }, '保存')),
+    h('div', { class: 'ab-form ab-boardedit-form' },
+      field('第一帖的时间', input),
+      h('p', { class: 'ab-row-note ab-timeedit-note' }, `整串帖子一起平移，帖子之间的间隔不变。现在：${fmtFull(first)} 到 ${fmtFull(last)}。`),
+      toNow));
+  openLayer(sheet, { key: 'timeedit' });
+}
+
 function threadMenu(t) {
   const Lb = UI[t.board];
   actionSheet(null, [
     { label: `网友语气：${TONE_LABEL[toneOf()]}（点此更改）`, run: () => actionSheet('网友语气', TONE_OPTIONS.map(([v, l]) => ({ label: (v === toneOf() ? '✓ ' : '') + l, run: () => { S.tone = v; save(); toast(`网友语气：${l}，之后的回复生效`); } }))) },
     { label: `AI 来源改用${S.api.mode === 'custom' ? '「跟随酒馆」' : '「独立 API」'}`, run: switchSource },
+    { label: '调整这串的时间', run: () => adjustThreadTime(t) },
     { label: Lb.copyThread, run: async () => toast((await copyText(threadAsText(t))) ? Lb.copied : '复制失败') },
     {
       label: Lb.delThread, danger: true,
@@ -2043,7 +2077,6 @@ function syncRootAttrs() {
 function render(opts = {}) {
   if (!R.app) return;
   syncRootAttrs();
-  alignVisibleThreads();
   tickClock();
   let t = current();
   if (S.screen === 'thread' && !t) S.screen = 'list';
