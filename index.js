@@ -1,5 +1,5 @@
 /* Anonymous Board · RP Companion v0.2
- * A standalone SillyTavern UI extension: a virtual phone with two anonymous forums (2ch / 4chan).
+ * A standalone SillyTavern UI extension: a virtual phone with three anonymous forums (2ch / 4chan / 더쿠 theqoo).
  * It never edits presets, prompts or chat history. The only thing it reads from the chat is
  * (optionally) recent messages or the Summarize extension's summary, sent as private background.
  */
@@ -8,7 +8,7 @@
 if (globalThis.__anonymousBoardV2) return;
 globalThis.__anonymousBoardV2 = true;
 
-const VERSION = '0.2.6';
+const VERSION = '0.3.0';
 const KEY = 'st_anonymous_board_v2';
 const LEGACY_KEY = 'st_anonymous_board_v1';
 const MAX_POSTS = 1000;
@@ -148,7 +148,32 @@ const UI = {
     tooLong: 'Comment is too long (3000 characters max)',
     stop: 'Stop', stopping: 'Stopping after this batch', stopped: n => `Stopped (${n} new)`,
   },
+  qoo: {
+    board: '스퀘어', boardSub: '더쿠', defaultName: '무명의 더쿠',
+    tabList: '게시판', tabNew: '글쓰기', tabSettings: '설정',
+    catalog: '목록', top: '맨 위', bottom: '맨 아래', update: '새 댓글', write: '댓글',
+    newThread: '글쓰기', reply: '댓글 쓰기',
+    fName: '닉네임', fMail: '', fTitle: '제목', fBody: '내용', fCat: '말머리', fBoard: '게시판',
+    phMail: '', phTitle: '제목을 입력하세요', phBody: '내용을 입력하세요', phReply: '댓글을 입력하세요',
+    submitThread: '등록', submitReply: '등록', cancel: '취소',
+    autoFetch: '글 등록 후 새 댓글 불러오기',
+    empty: '아직 글이 없어요.', emptyCta: '첫 글 쓰기',
+    noPosts: '아직 댓글이 없어요.', fetching: '새 댓글 불러오는 중', divider: '여기부터 새 댓글',
+    replyTo: n => (n === 0 ? '원덬에게 댓글' : `${n}덬에게 댓글`), showReplies: n => `이 댓글을 언급한 댓글 (${n})`, copy: '내용 복사', del: '삭제',
+    copyThread: '글 전체 복사', delThread: '이 글 삭제',
+    delThreadQ: '이 글과 댓글을 모두 삭제할까요?', delPostQ: n => (n === 0 ? '본문을 삭제할까요?' : `${n}번 댓글을 삭제할까요?`), delOk: '삭제',
+    res: n => `댓글 ${n}`, momentum: '조회', newCount: n => `새 댓글 ${n}`,
+    over: '댓글이 1000개를 넘었어요.\n새 글을 써 주세요.',
+    got: n => `새 댓글 ${n}개`, gotElsewhere: (n, title) => `「${title}」에 새 댓글 ${n}개`,
+    copied: '복사했어요', jumpNew: n => `새 댓글 ${n}개`, deleted: '삭제된 댓글입니다.',
+    needBody: '내용을 입력해 주세요', needTitle: '제목을 입력해 주세요', posted: '등록했어요',
+    tooLong: '내용이 너무 길어요 (3000자까지)',
+    stop: '중지', stopping: '이번 묶음까지만 불러올게요', stopped: n => `중지했어요 (새 댓글 ${n}개)`,
+  },
 };
+const FORUMS = ['2ch', '4ch', 'qoo'];
+const FORUM_LABEL = { '2ch': '2ch', '4ch': '4chan', qoo: '더쿠' };
+const QOO_CATS = ['잡담', '정보', '후기', '질문', '이슈', '유머'];
 
 /* ------------------------------------------------------------------ boards
    Each board has its own default poster name, a vibe line that goes into the prompt (in the forum's language),
@@ -194,8 +219,24 @@ const BOARDS = {
     { id: 'ck', name: '/ck/ - Food & Cooking', short: '/ck/', anon: 'Anonymous', ws: true, desc: '美食和做饭',
       vibe: 'Food and cooking, "rate my meal", "that\'s raw", fights about pineapple on pizza and well-done steak, someone eating something cursed.' },
   ],
+  qoo: [
+    { id: 'square', name: '스퀘어', short: '스퀘어', anon: '무명의 더쿠', desc: '综合热门：娱乐、新闻、八卦，什么都聊',
+      vibe: '연예·이슈·사회·일상 뭐든 올라오는 메인 게시판. 반응이 빠르고 댓글이 많다. "헐", "미쳤다", "ㅋㅋㅋㅋ", "아 진짜", 공감 가는 댓글엔 "ㄹㅇ", "이거지". 의견이 갈리면 댓글끼리 토론도 한다.' },
+    { id: 'ktalk', name: '케이돌토크', short: '케톡', anon: '무명의 더쿠', desc: 'K-pop 偶像、饭圈',
+      vibe: '아이돌·팬덤 이야기. 최애, 차애, 입덕, 덕통사고, 떡밥, 컴백, 무대, 직캠, 포카, 영업. 무대 감상에 호들갑, 덬들끼리 영업하고 TMI를 푼다.' },
+    { id: 'dyb', name: '드영배', short: '드영배', anon: '무명의 더쿠', desc: '韩剧、电影、演员',
+      vibe: '드라마·영화·배우 이야기. 본방 실시간 반응, 케미, 연기 칭찬과 아쉬움, 결말 예측, OST, "작감배"(작가·감독·배우), 다음 화 기다리며 울부짖기.' },
+    { id: 'talk', name: '일상토크', short: '일토', anon: '무명의 더쿠', desc: '日常闲聊、生活烦恼、求助',
+      vibe: '일상 잡담과 고민 상담. "덬들아 나 어떡해", 공감해 주는 댓글, 현실적인 조언, 소소한 자랑과 TMI, 자기 경험담.' },
+    { id: 'love', name: '연애토크', short: '연토', anon: '무명의 더쿠', desc: '恋爱咨询、暧昧、分手',
+      vibe: '연애 고민 게시판. 썸, 짝사랑, 이별, 재회, "그 사람 덬한테 관심 있는 거 맞아", "헤어져"와 "한 번만 더 기다려 봐"가 갈리는 댓글창. 응원과 현실 조언이 섞인다.' },
+    { id: 'beauty', name: '뷰티', short: '뷰티', anon: '무명의 더쿠', desc: '美妆、护肤',
+      vibe: '화장품·스킨케어 후기와 추천. 퍼스널컬러, "인생템", "피부 뒤집어짐", 성분 얘기, 가격 대비 만족도, 쿠션·립 색상 토론.' },
+    { id: 'horror', name: '공포/괴담', short: '공포', anon: '무명의 더쿠', desc: '怪谈、灵异、真实恐怖经历',
+      vibe: '괴담·실화 경험담. "실화임?", "소름", "무서워서 불 켜고 읽음", "후기 들고 와", 믿는 덬과 과학으로 설명하는 덬.' },
+  ],
 };
-const DEFAULT_SUB = { '2ch': 'news4vip', '4ch': 'b' };
+const DEFAULT_SUB = { '2ch': 'news4vip', '4ch': 'b', qoo: 'square' };
 const boardsFor = forum => [...BOARDS[forum], ...((S?.customBoards?.[forum]) || [])];
 const boardDef = (forum, id) => boardsFor(forum).find(b => b.id === id) || BOARDS[forum][0];
 const curSub = forum => boardDef(forum, S.sub?.[forum]).id;
@@ -213,9 +254,9 @@ const DEFAULTS = {
   autoFetch: true,
   ctx: { mode: 'recent', n: 8 },
   lore: '',
-  lang: { '2ch': 'auto', '4ch': 'auto' },
+  lang: { '2ch': 'auto', '4ch': 'auto', qoo: 'auto' },
   theme: 'classic',
-  names: { '2ch': { name: '', mail: '' }, '4ch': { name: '', mail: '' } },
+  names: { '2ch': { name: '', mail: '' }, '4ch': { name: '', mail: '' }, qoo: { name: '', mail: '' } },
   fab: { side: 'right', y: 0.6, tucked: false, autoTuck: false, hidden: false, hinted: false },
   win: { x: null, y: null, w: 380, h: 760 },
   pid4: 0,
@@ -224,8 +265,8 @@ const DEFAULTS = {
   // Forum clock: 'auto' follows the date/time written in the roleplay, 'manual' runs from a set moment, 'real' = device time.
   clock: { mode: 'auto', manual: null, manualAt: null },
   // Board being browsed in each forum, and boards the user made up (e.g. an in-story school forum).
-  sub: { '2ch': 'news4vip', '4ch': 'b' },
-  customBoards: { '2ch': [], '4ch': [] },
+  sub: { '2ch': 'news4vip', '4ch': 'b', qoo: 'square' },
+  customBoards: { '2ch': [], '4ch': [], qoo: [] },
   tone: 'normal', // 'gentle' | 'normal' | 'harsh'
 };
 
@@ -257,12 +298,13 @@ function nextPid() {
 }
 
 function normThread(t) {
-  const board = t.board === '4ch' ? '4ch' : '2ch';
+  const board = FORUMS.includes(t.board) ? t.board : '2ch';
   const created = Number(t.created) || Date.now();
   const out = {
     id: String(t.id || uuid()), board, sub: boardsFor(board).some(b => b.id === t.sub) ? t.sub : DEFAULT_SUB[board], title: bound(t.title, 120), created,
     bumped: Number(t.bumped) || created, userUid: t.userUid || makeUid(), unread: Number(t.unread) || 0, posts: [],
   };
+  if (board === 'qoo') out.cat = QOO_CATS.includes(t.cat) ? t.cat : QOO_CATS[0];
   const legacyIds = new Map();
   (Array.isArray(t.posts) ? t.posts : []).forEach((p, i) => {
     if (!p) return;
@@ -270,6 +312,7 @@ function normThread(t) {
     const ts = Number(p.ts) || created;
     let pid = Number(p.pid);
     if (board === '2ch') pid = no;
+    else if (board === 'qoo') pid = no - 1; // the article is 0, comments are 1, 2, 3…
     else if (!pid) pid = nextPid();
     let uid = p.uid;
     if (board === '2ch' && !uid) {
@@ -290,7 +333,7 @@ function load() {
   try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { console.warn('[AnonymousBoard] Could not read saved data', e); }
   if (!raw) raw = migrateV1();
   S = merge(clone(DEFAULTS), raw || {});
-  if (!['2ch', '4ch'].includes(S.board)) S.board = '2ch';
+  if (!FORUMS.includes(S.board)) S.board = '2ch';
   if (!['list', 'thread', 'new', 'settings'].includes(S.screen)) S.screen = 'list';
   if (!['classic', 'dark', 'auto'].includes(S.theme)) S.theme = 'classic';
   if (!['none', 'recent', 'summary'].includes(S.ctx.mode)) S.ctx.mode = 'recent';
@@ -299,7 +342,7 @@ function load() {
   if (!['st', 'custom'].includes(S.api.mode)) S.api.mode = 'st';
   if (!['auto', 'manual', 'real'].includes(S.clock.mode)) S.clock.mode = 'auto';
   if (!TONES.includes(S.tone)) S.tone = 'normal';
-  for (const f of ['2ch', '4ch']) {
+  for (const f of FORUMS) {
     S.customBoards[f] = (Array.isArray(S.customBoards[f]) ? S.customBoards[f] : [])
       .filter(b => b && b.id && clean(b.name))
       .map(b => ({ id: String(b.id), name: bound(b.name, 60), short: bound(b.short || b.name, 16), anon: bound(b.anon, 40), desc: bound(b.desc, 60), vibe: bound(b.vibe, 1200), ws: b.ws !== false, custom: true }));
@@ -585,11 +628,19 @@ function shiftThread(t, delta) {
 }
 
 const pad2 = n => String(n).padStart(2, '0');
+const KO_DAYS = '일월화수목금토';
 function fmtDay(ts, board) {
   const d = new Date(ts);
+  if (board === 'qoo') return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())} (${KO_DAYS[d.getDay()]})`;
   return board === '4ch'
     ? `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${pad2(d.getFullYear() % 100)}(${EN_DAYS[d.getDay()]})`
     : `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}(${JA_DAYS[d.getDay()]})`;
+}
+/* Theqoo: article "2015.03.14 21:30", comments "03.14 21:31" */
+function fmtQoo(ts, short = false) {
+  const d = new Date(ts);
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return short ? `${pad2(d.getMonth() + 1)}.${pad2(d.getDate())} ${hm}` : `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())} ${hm}`;
 }
 const CN_WEEK = '日一二三四五六';
 function fmtFull(ts) {
@@ -602,6 +653,7 @@ const EN_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
 function storyDateLine(board, ts) {
   const d = new Date(ts);
   const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  if (board === 'qoo') return `【작중 현재 시각】${fmtDay(ts, 'qoo')} ${hm}쯤. 덬들은 이 시점을 살고 있다. 이후의 사건·기술·유행어·밈은 모른다. 은어도 그 시절에 있던 것만 쓴다.`;
   if (board === '2ch') return `【作中の現在日時】${fmtDay(ts, '2ch')} ${hm}ごろ。住民はこの日時を生きている。これより後の出来事・技術・流行語・ネタは知らない。スラングもこの年代に実在したものだけ使う。`;
   return `IN-WORLD DATE: ${EN_WEEK[d.getDay()]}, ${EN_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}, around ${hm}. Anons live on this date: they know nothing that happened, was invented or became a meme after it, and only use slang that already existed then.`;
 }
@@ -791,6 +843,11 @@ const LANG_RULE = {
     zh: 'Write every post in Simplified Chinese, but keep 4chan culture intact: Anonymous, greentext lines starting with ">", >>quotes, blunt tone.',
     ja: 'Write every post in Japanese, but keep 4chan culture intact: Anonymous, greentext lines starting with ">", >>quotes, blunt tone.',
   },
+  qoo: {
+    ko: '모든 댓글은 한국어로 쓴다. 원덬이 다른 언어로 글을 써도 덬들은 한국어로 답한다(외국어라는 걸 언급하는 건 OK).',
+    zh: '모든 댓글은 중국어 간체로 쓴다. 단 더쿠 문화(무명의 더쿠, 원덬·N덬 호칭, 리액션, 말투)는 그대로 유지한다.',
+    en: '모든 댓글은 영어로 쓴다. 단 더쿠 문화(무명의 더쿠, 원덬·N덬 호칭, 리액션, 말투)는 그대로 유지한다.',
+  },
 };
 
 /* How nice the crowd is. Culture (short posts, anchors, greentext, slang, derails) stays the same at every level;
@@ -811,6 +868,7 @@ const TONE_2CH = {
 - ID文化（同じ人の連投、「自演乙」）はたまに軽く。
 - 下の「板の空気」や、スレの前のほうのレスが荒れていても、この口調を優先する。`,
   harsh: `# 住民の態度（口調：毒舌）
+- 住民の性格はバラバラ：ツッコミ、煽り、揚げ足取り、マジレス、親切な人、スレタイしか読んでない人、自分語り、関係ない雑談、ネタにマジレスする人、「釣りだろ」と疑う人。全員が同意したり、同じノリで盛り上がったりしない。
 - 「ググれ」「釣り乙」「はい論破」のような突き放しや、ID文化のツッコミ（「自演乙」「ID真っ赤」）もあり。
 - 毒舌・皮肉・ブラックジョークはOK（ただし下の「禁止」は必ず守る）。`,
 };
@@ -831,6 +889,21 @@ const TONE_4CH = {
 - Dismissive slang is fair game: cope, seethe, ngmi, who asked, nice blogpost, rent free, touch grass, absolute state of this thread.
 - No group agreement, no wholesome group hugs. Rude, crude and edgy is fine; hateful is not (the hard limits below always apply).`,
 };
+const TONE_QOO = {
+  gentle: `# 덬들의 태도 (말투: 다정)
+- 대부분 다정하고 원덬 편. 공감, 응원, 진심 어린 조언, 같이 웃어 주는 반응.
+- 장난은 가볍게. 비꼬기, 인신공격, "주작이네", "관종" 같은 말은 하지 않는다.
+- 다른 의견도 부드럽게 말한다.
+- 아래 게시판 분위기나 앞쪽 댓글이 험해도 이 말투를 우선한다.`,
+  normal: `# 덬들의 태도 (말투: 보통)
+- 공감·조언·드립·TMI·딴소리가 섞인 평범한 댓글창. 대부분 호의적이거나 중립.
+- 냉정한 현실 조언이나 살짝 꼬집는 댓글은 한 번에 1~2개까지, 웃고 넘길 정도로.
+- 원덬에게 인신공격하거나 몰아가지 않는다. "주작 아님?" 정도의 의심은 가끔 OK.
+- 아래 게시판 분위기나 앞쪽 댓글이 험해도 이 말투를 우선한다.`,
+  harsh: `# 덬들의 태도 (말투: 매운맛)
+- 날카로운 현실 조언, 팩폭, 비꼬기, "주작이네", "이걸 왜 여기다 씀", "원덬 답답함" 같은 반응도 섞인다. 의견이 갈리면 댓글끼리 싸우기도 한다.
+- 그래도 아래 "금지"는 반드시 지킨다.`,
+};
 const toneOf = () => (TONES.includes(S.tone) ? S.tone : 'normal');
 const TONE_LABEL = { gentle: '温和', normal: '普通', harsh: '毒舌' };
 const TONE_OPTIONS = TONES.map(v => [v, TONE_LABEL[v]]);
@@ -846,7 +919,6 @@ ${LANG_RULE['2ch'][lang]}
 - 名前はほぼ全員この板のデフォルト名「${anon}」。コテハンはごく稀。
 - スレ主は「イッチ」「>>1」と呼ばれる。
 - 1レスは短く、1〜3行。改行多め、句読点少なめ、タメ口。丁寧語は浮く。
-- 住民の性格はバラバラ：ツッコミ、煽り、揚げ足取り、マジレス、親切な人、スレタイしか読んでない人、自分語り、関係ない雑談、ネタにマジレスする人、「釣りだろ」と疑う人。全員が同意したり、同じノリで盛り上がったりしない。
 - ネットスラングは作中の年代に実在したものだけ、自然に、毎回違うものを少しずつ（例：草、ｗ、それな、kwsk、マジレスすると、乙、おまいら、ワイ、〜ンゴ、ﾜﾛﾀ、うｐ、ソースは？、知ってた、定期、ガチ、ニキ、〜で草、なお、ファッ!?）。同じ語の連発はしない。
 - 顔文字 (´・ω・｀) (ﾟ∀ﾟ) ( ﾟдﾟ) や一行AAはたまに。
 - アンカーは「>>番号」。複数アンカー「>>3 >>5」もあり。アンカー先の内容にちゃんと反応する。
@@ -900,9 +972,41 @@ A JSON array only. No code fences, no commentary before or after.
 [{"name":"${anon}","text":"post body, \\n for line breaks"}]`;
 }
 
+function systemQoo(lang, bd) {
+  const anon = anonOf('qoo', bd);
+  return `너는 한국 익명 커뮤니티 "더쿠(theqoo)"의 게시글에 댓글을 다는 여러 명의 이용자(덬)를 동시에 연기한다. 이건 롤플레이 본편과 별개인 부가 기능이고, 본편 이야기를 서술하거나 진행하지 않는다.
+
+# 언어
+${LANG_RULE.qoo[lang]}
+
+# 더쿠다움
+- 모두 익명이고 닉네임은 "${anon}". 이용자끼리는 "덬", 글쓴이는 "원덬"이라고 부르고, 원덬에게 "덬아"라고 말을 건다.
+- 다른 댓글을 가리킬 때는 댓글 번호로 "3덬", "5덬 말 공감", "2덬아 그거 어디서 봄?" 처럼 쓴다.
+- 댓글은 짧게 1~3줄. 반말과 음슴체("~함", "~임", "~했음"), 구어체. 존댓말은 거의 안 쓴다.
+- 리액션이 크다: ㅋㅋㅋㅋ, ㅠㅠ, ㅎㅎ, ㄹㅇ, ㅇㅇ, ㄷㄷ, 헐, 와, 미쳤다, 개웃기네, 아 진짜, 인정, 공감, 존맛 등. 같은 말을 연달아 반복하지 않는다.
+- 덕질 용어는 상황에 맞을 때만 자연스럽게: 최애, 차애, 입덕, 탈덕, 덕통사고, 떡밥, 머글, 영업.
+- 여러 종류의 덬: 공감하는 덬, 현실 조언하는 덬, 드립 치는 덬, 자기 경험 TMI 푸는 덬, 되묻는 덬, 살짝 다른 의견 내는 덬, 상관없는 얘기로 새는 덬. 모두 같은 반응을 하지 않는다.
+- 원덬이 댓글을 달면 "원덬 왔다", "후기 들고 와" 같은 반응이 나올 수 있다.
+
+${TONE_QOO[toneOf()]}
+
+# 이 게시판(${bd.name})의 분위기
+${bd.vibe || '이 게시판 주제에 맞게 댓글을 단다.'}
+
+# 금지
+차별·혐오 표현, 실존 인물 비방, 노골적인 성적 묘사, 미성년자가 관련된 성적 내용, 자해·자살 권유.
+
+# 덬들이 아는 것
+제목과 이 글의 본문·댓글만 안다("공개 설정"이 있으면 그 세계의 상식으로 안다). "작가 메모"는 분위기 참고용이고 덬들은 읽지 않았다. 추측은 추측으로만 다룬다. 원덬인 척하지 않는다. 소설 같은 서술이나 지문은 쓰지 않는다.
+
+# 출력 형식
+JSON 배열만 출력. 코드블록·앞뒤 설명 금지.
+[{"text":"댓글 내용 (줄바꿈은 \\n)"}]`;
+}
+
 function langOf(board) {
   const v = S.lang[board];
-  return v && v !== 'auto' && LANG_RULE[board][v] ? v : (board === '2ch' ? 'ja' : 'en');
+  return v && v !== 'auto' && LANG_RULE[board][v] ? v : ({ '2ch': 'ja', '4ch': 'en', qoo: 'ko' })[board];
 }
 
 /* OP + as many of the latest posts as fit the budget */
@@ -927,6 +1031,27 @@ function buildPrompt(t, count, futurePids, cont = false) {
   const bg = readRpContext();
   const { posts, gap } = pickPosts(t);
   const lastYou = [...t.posts].reverse().find(p => p.you && !p.del);
+  if (t.board === 'qoo') {
+    const [art, ...rest] = posts;
+    const lines = rest.map((p, i) => {
+      const head = `${p.pid}. ${p.del ? '(삭제된 댓글)' : `${p.name} | ${p.tsText || fmtQoo(p.ts, true)}${p.you ? ' (원덬)' : ''}`}`;
+      return (gap && i === 0 ? '(…앞 댓글 생략…)\n\n' : '') + head + (p.del ? '' : '\n' + bound(p.text, 700));
+    });
+    const start = t.posts.length; // the article is 0, so the next comment number equals the post count
+    const focus = lastYou ? (lastYou.pid === 0 ? '원덬의 본문' : `원덬의 ${lastYou.pid}번 댓글`) : '';
+    const prompt = [
+      `【게시판】${boardOf(t).name} (더쿠)`,
+      `【말머리】${t.cat || QOO_CATS[0]}`,
+      `【제목】${t.title}`,
+      `【본문】(원덬) ${art?.tsText || fmtQoo(art?.ts || t.created)}`, art?.del ? '(삭제됨)' : bound(art?.text, 1500),
+      `【댓글】${rest.length ? '' : '아직 없음'}`, lines.join('\n\n'),
+      lore ? `【공개 설정 (이 세계 사람이라면 누구나 아는 것)】\n${lore}` : '',
+      bg ? `【작가 메모 (덬들은 읽지 않았다. 분위기 참고용)】\n${bg}` : '',
+      storyDateLine('qoo', forumNow()),
+      `【지시】새 댓글 ${count}개. 댓글 번호는 ${start}~${start + count - 1}번이 된다 (같은 묶음 안의 댓글을 "N덬"으로 언급해도 됨). ${cont ? '앞 댓글의 흐름을 이어서 계속한다 (새 덬 등장, 토론 이어가기, 딴소리도 OK). 앞에서 나온 드립 반복은 피한다.' : `최근 댓글${focus ? `, 특히 ${focus}` : ''}에 대한 반응 위주로, 가끔 딴 얘기도 섞는다.`} JSON 배열만 출력.`,
+    ].filter(Boolean).join('\n');
+    return { systemPrompt: systemQoo(lang, boardOf(t)), prompt };
+  }
   if (t.board === '2ch') {
     const lines = posts.map((p, i) => {
       const head = p.del ? `${p.no} ：あぼーん` : `${p.no} ：${p.name}${p.mail ? `[${p.mail}]` : ''}：${p.tsText || fmt2ch(p.ts)} ID:${p.uid}${p.uid === t.userUid ? '（スレ主）' : ''}`;
@@ -1035,9 +1160,10 @@ function makePost(t, { name, mail, text, you = false, uid, ts, pid }) {
   const no = t.posts.length + 1;
   const post = {
     no,
-    pid: t.board === '4ch' ? (pid || nextPid()) : no,
-    name: bound(name || anonOf(t.board, boardOf(t)), 40),
-    mail: /sage/i.test(mail || '') ? 'sage' : '',
+    pid: t.board === '4ch' ? (pid || nextPid()) : t.board === 'qoo' ? no - 1 : no,
+    // Theqoo has no names at all: everyone is the board's default (무명의 더쿠).
+    name: bound((t.board === 'qoo' ? '' : name) || anonOf(t.board, boardOf(t)), 40),
+    mail: t.board !== 'qoo' && /sage/i.test(mail || '') ? 'sage' : '',
     uid: t.board === '2ch' ? (uid || (you ? t.userUid : makeUid())) : undefined,
     text: normText(text).slice(0, 3000),
     ts, you,
@@ -1049,7 +1175,7 @@ function makePost(t, { name, mail, text, you = false, uid, ts, pid }) {
 function addUserPost(t, { name, mail, text }) {
   const p = makePost(t, { name, mail, text, you: true });
   t.posts.push(p);
-  S.names[t.board] = { name: bound(name, 40), mail: bound(mail, 20) };
+  if (t.board !== 'qoo') S.names[t.board] = { name: bound(name, 40), mail: bound(mail, 20) };
   return p;
 }
 
@@ -1183,8 +1309,14 @@ function fetchingRow(t) {
 /* ------------------------------------------------------------------ thread helpers */
 const QUOTE_SPLIT = /(>>\d{1,10}(?:-\d{1,4})?)/;
 const QUOTE_ALL = />>(\d{1,10})(?:-(\d{1,4}))?/g;
-function quotesIn(text) {
+const QOO_SPLIT = /(원덬|(?<!\d)\d{1,4}덬|>>\d{1,4})/;
+const QOO_ALL = /(?<!\d)(\d{1,4})덬|>>(\d{1,4})/g;
+function quotesIn(text, board) {
   const out = [];
+  if (board === 'qoo') {
+    for (const m of String(text || '').matchAll(QOO_ALL)) out.push(+(m[1] ?? m[2]));
+    return out;
+  }
   for (const m of String(text || '').matchAll(QUOTE_ALL)) {
     const a = +m[1];
     out.push(a);
@@ -1201,7 +1333,7 @@ function threadCtx(t) {
   }
   for (const p of t.posts) {
     if (p.del) continue;
-    for (const q of new Set(quotesIn(p.text))) {
+    for (const q of new Set(quotesIn(p.text, t.board))) {
       if (q === p.pid || !byPid.has(q)) continue;
       if (!back.has(q)) back.set(q, []);
       back.get(q).push(p.pid);
@@ -1209,11 +1341,17 @@ function threadCtx(t) {
   }
   return { t, board: t.board, byPid, back, you, idTot, idIdx, opPid: t.posts[0]?.pid };
 }
-const quotesYou = (p, ctx) => !p.you && quotesIn(p.text).some(q => ctx.you.has(q));
+const quotesYou = (p, ctx) => !p.you && (quotesIn(p.text, ctx.board).some(q => ctx.you.has(q))
+  || (ctx.board === 'qoo' && ctx.you.has(0) && /원덬/.test(p.text || ''))); // on Theqoo "원덬" talks to the poster
 
 function threadAsText(t) {
   const Lb = UI[t.board];
   const head = t.board === '2ch' ? `【${boardOf(t).name}】${t.title}` : `${boardOf(t).name}  ${t.title || ''}`.trim();
+  if (t.board === 'qoo') {
+    const [art, ...rest] = t.posts;
+    return `[${boardOf(t).name}] [${t.cat || QOO_CATS[0]}] ${t.title}\n${art?.name || ''} | ${fmtQoo(art?.ts || t.created)}\n\n${art?.del ? '' : art?.text || ''}\n\n`
+      + rest.filter(p => !p.del).map(p => `${p.pid}. ${p.name} | ${fmtQoo(p.ts, true)}\n${p.text}`).join('\n\n');
+  }
   return head + '\n\n' + t.posts.filter(p => !p.del).map(p => t.board === '2ch'
     ? `${p.no} ：${p.name}：${p.tsText || fmt2ch(p.ts)} ID:${p.uid}\n${p.text}`
     : `${p.name} ${p.tsText || fmt4ch(p.ts)} No.${p.pid}\n${p.text}`).join('\n\n');
@@ -1252,10 +1390,19 @@ function bodyView(text, ctx) {
   lines.forEach((line, i) => {
     let host = box;
     if (ctx.board === '4ch' && /^\s*>(?!>\d)/.test(line)) { host = h('span', { class: 'ab-green' }); box.append(host); }
-    for (const part of line.split(QUOTE_SPLIT)) {
-      if (!part) continue;
-      const m = part.match(/^>>(\d+)(?:-\d+)?$/);
-      host.append(m ? quoteLink(+m[1], part, ctx) : part);
+    if (ctx.board === 'qoo') {
+      for (const part of line.split(QOO_SPLIT)) {
+        if (!part) continue;
+        if (part === '원덬') { host.append(h('span', { class: 'ab-qop' }, part)); continue; }
+        const m = part.match(/^(?:(\d+)덬|>>(\d+))$/);
+        host.append(m ? quoteLink(+(m[1] ?? m[2]), part, ctx) : part);
+      }
+    } else {
+      for (const part of line.split(QUOTE_SPLIT)) {
+        if (!part) continue;
+        const m = part.match(/^>>(\d+)(?:-\d+)?$/);
+        host.append(m ? quoteLink(+m[1], part, ctx) : part);
+      }
     }
     if (i < lines.length - 1) box.append(h('br'));
   });
@@ -1322,7 +1469,39 @@ function post4ch(p, ctx, inPop) {
   return h('div', { class: 'ab-r4wrap', dataset: { no: p.no }, id: inPop ? null : `ab-post-${p.no}` }, h('span', { class: 'ab-r4arrows', 'aria-hidden': 'true' }, '>>'), inner);
 }
 
-const postView = (p, ctx, inPop = false) => ctx.board === '2ch' ? post2ch(p, ctx, inPop) : post4ch(p, ctx, inPop);
+/* Theqoo: the article (pid 0) is a page with a title and views; comments are a numbered list. */
+const qooViews = t => 20 + (hash(t.id) % 80) + t.posts.filter(p => !p.del).length * 41;
+function postQoo(p, ctx, inPop) {
+  const Lb = UI.qoo;
+  const t = ctx.t;
+  const replies = ctx.back.get(p.pid) || [];
+  const id = inPop ? null : `ab-post-${p.no}`;
+  if (p.pid === 0) {
+    const meta = h('div', { class: 'ab-qa-meta' },
+      h('span', { class: 'ab-qa-name' }, p.name), h('span', { class: 'ab-qa-sep' }, '·'),
+      h('span', { class: 'ab-qa-date' }, p.tsText || fmtQoo(p.ts)));
+    if (!inPop) meta.append(h('span', { class: 'ab-qa-sep' }, '·'), h('span', {}, `${Lb.momentum} ${qooViews(t).toLocaleString()}`));
+    meta.append(h('button', { type: 'button', class: 'ab-qa-more', 'aria-label': '본문 메뉴', onclick: () => postActions(p, ctx) }, '⋯'));
+    return h('article', { class: 'ab-qa' + (p.del ? ' is-del' : ''), dataset: { no: p.no }, id },
+      h('div', { class: 'ab-qa-headline' }, h('span', { class: 'ab-qtag' }, t.cat || QOO_CATS[0]), h('h1', { class: 'ab-qa-title' }, t.title || '(제목 없음)')),
+      meta,
+      h('div', { class: 'ab-qa-body' }, p.del ? Lb.deleted : bodyView(p.text, ctx)));
+  }
+  const cls = ['ab-qc'];
+  if (p.you) cls.push('is-you');
+  if (quotesYou(p, ctx)) cls.push('to-you');
+  if (p.del) cls.push('is-del');
+  const head = h('div', { class: 'ab-qc-head' },
+    h('button', { type: 'button', class: 'ab-qc-no', onclick: () => postActions(p, ctx) }, String(p.pid)),
+    h('span', { class: 'ab-qc-name' }, p.del ? '' : p.name));
+  if (p.you && !p.del) head.append(h('span', { class: 'ab-qchip' }, ctx.you.has(0) ? '원덬' : '내 댓글'));
+  if (!p.del) head.append(h('span', { class: 'ab-qc-date' }, p.tsText || fmtQoo(p.ts, true)));
+  if (replies.length) head.append(h('button', { type: 'button', class: 'ab-qc-rc', title: Lb.showReplies(replies.length), onclick: () => showPosts(replies, ctx) }, `↳${replies.length}`));
+  return h('article', { class: cls.join(' '), dataset: { no: p.no }, id }, head,
+    h('div', { class: 'ab-qc-body' }, p.del ? Lb.deleted : bodyView(p.text, ctx)));
+}
+
+const postView = (p, ctx, inPop = false) => ctx.board === '2ch' ? post2ch(p, ctx, inPop) : ctx.board === 'qoo' ? postQoo(p, ctx, inPop) : post4ch(p, ctx, inPop);
 
 /* ------------------------------------------------------------------ overlays (sheets, dialogs, popups, toast) */
 function openLayer(node, { key = 'layer', backdrop = 'dim', onClose } = {}) {
@@ -1384,7 +1563,8 @@ function postActions(p, ctx) {
   const n = ctx.board === '2ch' ? p.no : p.pid;
   const replies = ctx.back.get(p.pid) || [];
   const acts = [];
-  if (!p.del && t.posts.length < MAX_POSTS) acts.push({ label: Lb.replyTo(n), run: () => openCompose(t, `>>${n}\n`) });
+  const mention = ctx.board === 'qoo' ? (n === 0 ? '원덬 ' : `${n}덬 `) : `>>${n}\n`;
+  if (!p.del && t.posts.length < MAX_POSTS) acts.push({ label: Lb.replyTo(n), run: () => openCompose(t, mention) });
   if (replies.length) acts.push({ label: Lb.showReplies(replies.length), run: () => showPosts(replies, ctx) });
   if (!p.del) acts.push({ label: Lb.copy, run: async () => toast((await copyText(p.text)) ? Lb.copied : '复制失败，请长按文字手动复制') });
   if (!p.del) acts.push({
@@ -1396,13 +1576,14 @@ function postActions(p, ctx) {
       render({ scroll: 'keep' });
     },
   });
-  actionSheet(ctx.board === '2ch' ? `>>${n}` : `No.${n}`, acts);
+  actionSheet(ctx.board === '2ch' ? `>>${n}` : ctx.board === 'qoo' ? (n === 0 ? '본문' : `${n}번 댓글`) : `No.${n}`, acts);
 }
 
 /* Board list for one forum: thread counts and unread per board, custom boards at the end. */
+const PICKER_TITLE = { '2ch': '板一覧', '4ch': 'Boards', qoo: '게시판 목록' };
 function openBoardPicker(forum, onPick) {
   const cur = curSub(forum);
-  const list = h('div', { class: 'ab-boardlist', role: 'listbox', 'aria-label': forum === '2ch' ? '板一覧' : 'Boards' });
+  const list = h('div', { class: 'ab-boardlist', role: 'listbox', 'aria-label': PICKER_TITLE[forum] });
   for (const bd of boardsFor(forum)) {
     const mine = S.threads.filter(t => t.board === forum && t.sub === bd.id);
     const unread = mine.reduce((a, t) => a + (t.unread || 0), 0);
@@ -1417,11 +1598,11 @@ function openBoardPicker(forum, onPick) {
       bd.custom ? h('button', { type: 'button', class: 'ab-textbtn ab-bp-edit', onclick: () => editCustomBoard(forum, bd, id => { closeLayer('boards'); onPick(id); }) }, '编辑') : null));
   }
   list.append(h('button', { type: 'button', class: 'ab-bp-add', onclick: () => editCustomBoard(forum, null, id => { closeLayer('boards'); onPick(id); }) }, '＋ 自定义板块'));
-  const sheet = h('div', { class: 'ab-sheet ab-picker ab-boards', role: 'dialog', 'aria-label': forum === '2ch' ? '板一覧' : 'Boards' },
+  const sheet = h('div', { class: 'ab-sheet ab-picker ab-boards', role: 'dialog', 'aria-label': PICKER_TITLE[forum] },
     h('div', { class: 'ab-sheet-grab', 'aria-hidden': 'true' }),
     h('div', { class: 'ab-sheet-head' },
       h('button', { type: 'button', class: 'ab-textbtn', onclick: () => closeLayer('boards') }, UI[forum].cancel),
-      h('div', { class: 'ab-sheet-title' }, forum === '2ch' ? '板一覧' : 'Boards'),
+      h('div', { class: 'ab-sheet-title' }, PICKER_TITLE[forum]),
       h('span', { class: 'ab-sheet-spacer' })),
     list);
   openLayer(sheet, { key: 'boards' });
@@ -1429,7 +1610,7 @@ function openBoardPicker(forum, onPick) {
 
 /* Create or edit a board of the user's own – e.g. a forum that exists inside the story. */
 function editCustomBoard(forum, bd, onDone) {
-  const name = h('input', { class: 'ab-input', type: 'text', maxLength: 60, value: bd?.name || '', placeholder: forum === '2ch' ? '例如：アイドル板、桜ヶ丘学園板' : '例如：/vt/ - Virtual YouTubers', autocomplete: 'off' });
+  const name = h('input', { class: 'ab-input', type: 'text', maxLength: 60, value: bd?.name || '', placeholder: ({ '2ch': '例如：アイドル板、桜ヶ丘学園板', '4ch': '例如：/vt/ - Virtual YouTubers', qoo: '例如：게임토크、한빛고 익명게시판' })[forum], autocomplete: 'off' });
   const anon = h('input', { class: 'ab-input', type: 'text', maxLength: 40, value: bd?.anon || '', placeholder: UI[forum].defaultName, autocomplete: 'off' });
   const vibe = h('textarea', { class: 'ab-input ab-ta', rows: 4, maxLength: 1200, placeholder: '这个板块聊什么、住民是什么样的人。也可以写成剧情世界里的论坛，例如：桜ヶ丘学园的校内匿名版，住民都是在校学生，大家都认识学生会长。' });
   vibe.value = bd?.vibe || '';
@@ -1469,7 +1650,7 @@ function editCustomBoard(forum, bd, onDone) {
       h('button', { type: 'button', class: 'ab-btn ab-btn-primary', onclick: save1 }, '保存')),
     h('div', { class: 'ab-form ab-boardedit-form' },
       field('板块名称', name),
-      field('默认名字', anon),
+      forum === 'qoo' ? null : field('默认名字', anon),
       field('板块说明（会告诉 AI 这个板块的话题和住民）', vibe, 'is-body'),
       forum === '4ch' ? h('div', { class: 'ab-inline-opt' }, switchBtn(ws, v => { ws = v; }, '全年龄板块'), h('span', {}, '全年龄板块（蓝色版面）')) : null,
       bd ? h('button', { type: 'button', class: 'ab-btn is-danger ab-boardedit-del', onclick: remove }, '删除这个板块') : null));
@@ -1555,7 +1736,7 @@ function openCompose(t, insert) {
   const Lb = UI[t.board];
   if (t.posts.length >= MAX_POSTS) { toast(Lb.over.split('\n')[0]); return; }
   const d = ui.drafts[t.id] || (ui.drafts[t.id] = { text: '' });
-  if (insert) d.text = (d.text && !d.text.endsWith('\n') ? d.text + '\n' : d.text) + insert;
+  if (insert) d.text = (d.text && !/[\n ]$/.test(d.text) ? d.text + (insert.endsWith('\n') ? '\n' : ' ') : d.text) + insert;
   const remembered = S.names[t.board] || {};
   const name = h('input', { class: 'ab-input', type: 'text', maxLength: 40, placeholder: anonOf(t.board, boardOf(t)), value: remembered.name || '', autocomplete: 'off' });
   const mail = h('input', { class: 'ab-input', type: 'text', maxLength: 20, placeholder: Lb.phMail, value: remembered.mail || '', autocomplete: 'off', autocapitalize: 'off' });
@@ -1565,7 +1746,7 @@ function openCompose(t, insert) {
   const submit = () => {
     const text = clean(ta.value);
     if (!text) { toast(Lb.needBody); ta.focus(); return; }
-    addUserPost(t, { name: name.value, mail: mail.value, text });
+    addUserPost(t, t.board === 'qoo' ? { name: '', mail: '', text } : { name: name.value, mail: mail.value, text });
     d.text = '';
     save();
     closeLayer('compose');
@@ -1574,7 +1755,9 @@ function openCompose(t, insert) {
     if (S.autoFetch) summon(t.id);
   };
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); } });
-  const form = t.board === '2ch'
+  const form = t.board === 'qoo'
+    ? h('div', { class: 'ab-form ab-form-qoo' }, h('p', { class: 'ab-qform-as' }, `${Lb.defaultName}(으)로 등록돼요`), ta)
+    : t.board === '2ch'
     ? h('div', { class: 'ab-form ab-form-2ch' },
       h('div', { class: 'ab-form-row2' }, field(Lb.fName, name), field(Lb.fMail, mail)),
       field(Lb.fBody, ta, 'is-body'))
@@ -1621,17 +1804,17 @@ function appbar({ back, title, sub, right = [], titleCls = '' }) {
 }
 
 function boardSwitch() {
-  const other = S.board === '2ch' ? '4ch' : '2ch';
-  const otherUnread = S.threads.filter(t => t.board === other).reduce((a, t) => a + (t.unread || 0), 0);
   const seg = h('div', { class: 'ab-boardswitch', role: 'tablist', 'aria-label': '切换论坛' });
-  for (const [b, label] of [['2ch', '2ch'], ['4ch', '4chan']]) {
+  for (const b of FORUMS) {
+    const unread = b !== S.board && S.threads.some(t => t.board === b && t.unread);
     seg.append(h('button', {
-      type: 'button', role: 'tab', class: 'ab-bs-btn' + (S.board === b ? ' is-on' : ''), 'aria-selected': String(S.board === b),
+      type: 'button', role: 'tab', class: 'ab-bs-btn' + (S.board === b ? ' is-on' : ''), 'aria-selected': String(S.board === b), dataset: { forum: b },
       onclick: () => { if (S.board === b) return; S.board = b; save(); syncRootAttrs(); render({ scroll: 'top' }); },
-    }, label, b === other && otherUnread ? h('span', { class: 'ab-dot', 'aria-label': '有新回复' }) : null));
+    }, FORUM_LABEL[b], unread ? h('span', { class: 'ab-dot', 'aria-label': '有新回复' }) : null));
   }
   return seg;
 }
+const listIcon = b => (b === '4ch' ? 'grid' : 'list');
 
 function bottomNav() {
   const Lb = L();
@@ -1639,7 +1822,7 @@ function bottomNav() {
     type: 'button', class: 'ab-tab' + (S.screen === id ? ' is-on' : ''), 'aria-current': S.screen === id ? 'page' : null,
     onclick: () => go(id, { scroll: 'top' }),
   }, icon(ic), h('span', { class: 'ab-tab-label' }, label));
-  return h('nav', { class: 'ab-tabs' }, tab('list', S.board === '2ch' ? 'list' : 'grid', Lb.tabList), tab('new', 'compose', Lb.tabNew), tab('settings', 'sliders', Lb.tabSettings));
+  return h('nav', { class: 'ab-tabs' }, tab('list', listIcon(S.board), Lb.tabList), tab('new', 'compose', Lb.tabNew), tab('settings', 'sliders', Lb.tabSettings));
 }
 
 function momentum(t) {
@@ -1672,6 +1855,21 @@ function viewList() {
         t.unread ? h('span', { class: 'ab-badge' }, Lb.newCount(t.unread)) : null)));
     });
     body.append(ol);
+  } else if (S.board === 'qoo') {
+    const ul = h('ul', { class: 'ab-qlist' });
+    for (const t of threads) {
+      const n = t.posts.filter(p => !p.del).length - 1;
+      ul.append(h('li', {}, h('button', { type: 'button', class: 'ab-qrow', onclick: () => openThread(t) },
+        h('span', { class: 'ab-qrow-main' },
+          h('span', { class: 'ab-qrow-title' }, h('span', { class: 'ab-qtag' }, t.cat || QOO_CATS[0]), ' ', t.title || '(제목 없음)',
+            n > 0 ? h('span', { class: 'ab-qrow-count' }, ` ${n}`) : null),
+          h('span', { class: 'ab-qrow-meta' },
+            h('span', {}, shortTime(t.bumped || t.created)),
+            h('span', {}, `${Lb.momentum} ${qooViews(t).toLocaleString()}`),
+            ui.busy.has(t.id) ? h('span', { class: 'ab-subject-busy' }, Lb.fetching + '…') : null)),
+        t.unread ? h('span', { class: 'ab-badge' }, Lb.newCount(t.unread)) : null)));
+    }
+    body.append(ul);
   } else {
     const grid = h('div', { class: 'ab-catalog' });
     for (const t of threads) {
@@ -1689,11 +1887,13 @@ function viewList() {
   const today = fmtDay(forumNow(), S.board);
   const elsewhere = S.threads.some(t => t.board === S.board && t.sub !== bd.id && t.unread);
   const pick = h('button', {
-    type: 'button', class: 'ab-boardbtn', 'aria-haspopup': 'dialog', title: S.board === '2ch' ? '板を選ぶ' : 'Choose a board',
+    type: 'button', class: 'ab-boardbtn', 'aria-haspopup': 'dialog', title: ({ '2ch': '板を選ぶ', '4ch': 'Choose a board', qoo: '게시판 선택' })[S.board],
     onclick: () => openBoardPicker(S.board, id => { S.sub[S.board] = id; save(); render({ scroll: 'top' }); }),
   }, h('span', { class: 'ab-boardbtn-name' }, bd.name), icon('close', 'ab-ic ab-ic-chev'), elsewhere ? h('span', { class: 'ab-dot ab-dot-inline', 'aria-label': '其他板块有新回复' }) : null);
   const title = S.board === '2ch'
     ? appbar({ title: pick, sub: `${Lb.boardSub}　${today}`, titleCls: 'is-board' })
+    : S.board === 'qoo'
+    ? appbar({ title: pick, sub: `${Lb.boardSub} · ${today}`, titleCls: 'is-board' })
     : appbar({ title: pick, sub: today, titleCls: 'is-board' });
   return [title, boardSwitch(), body, bottomNav()];
 }
@@ -1704,10 +1904,15 @@ function viewThread(t) {
   const body = h('main', { class: `ab-body ab-thread ab-thread-${t.board}` });
   if (t.board === '2ch') body.append(h('h1', { class: 'ab-t2-title' }, t.title || '（無題）'));
   if (!t.posts.length) body.append(h('p', { class: 'ab-note-inline' }, Lb.noPosts));
+  const nComments = t.posts.filter(p => !p.del).length - 1;
   for (const p of t.posts) {
     if (t.board === '4ch' && p.del) continue;
     if (ui.dividerAt && p.no === ui.dividerAt) body.append(h('div', { class: 'ab-divider', id: 'ab-divider' }, h('span', {}, Lb.divider)));
     body.append(postView(p, ctx));
+    if (t.board === 'qoo' && p.pid === 0) {
+      body.append(h('div', { class: 'ab-qc-title' }, '댓글 ', h('b', {}, String(Math.max(0, nComments)))));
+      if (t.posts.length === 1 && !ui.busy.has(t.id)) body.append(h('p', { class: 'ab-note-inline' }, Lb.noPosts));
+    }
   }
   if (ui.busy.has(t.id)) body.append(fetchingRow(t));
   if (t.posts.length >= MAX_POSTS) body.append(h('div', { class: 'ab-over' }, Lb.over));
@@ -1720,7 +1925,7 @@ function viewThread(t) {
   const tool = (ic, label, run, extra = '') => h('button', { type: 'button', class: 'ab-tool ' + extra, onclick: run }, icon(ic), h('span', { class: 'ab-tab-label' }, label));
   const updateTool = () => { const b = tool('refresh', Lb.update, () => summon(t.id), 'is-primary' + (busy ? ' is-busy' : '')); b.title = `AI 来源：${sourceLabel()}`; return b; };
   const toolbar = h('nav', { class: 'ab-toolbar' },
-    tool(t.board === '2ch' ? 'list' : 'grid', Lb.catalog, () => go('list', { scroll: 'top' })),
+    tool(listIcon(t.board), Lb.catalog, () => go('list', { scroll: 'top' })),
     tool('top', Lb.top, () => body.scrollTo({ top: 0, behavior: 'smooth' })),
     tool('bottom', Lb.bottom, () => body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' })),
     updateTool(),
@@ -1730,6 +1935,8 @@ function viewThread(t) {
 
   const head = t.board === '2ch'
     ? appbar({ back: () => go('list'), title: t.title || '（無題）', sub: `${boardOf(t).short}　${Lb.res(t.posts.filter(p => !p.del).length)}`, right: [h('button', { type: 'button', class: 'ab-iconbtn', 'aria-label': 'メニュー', onclick: () => threadMenu(t) }, icon('more'))], titleCls: 'is-thread' })
+    : t.board === 'qoo'
+    ? appbar({ back: () => go('list'), title: boardOf(t).name, sub: Lb.res(Math.max(0, nComments)), right: [h('button', { type: 'button', class: 'ab-iconbtn', 'aria-label': '메뉴', onclick: () => threadMenu(t) }, icon('more'))], titleCls: 'is-board is-small' })
     : appbar({ back: () => go('list'), title: boardOf(t).name, sub: `No.${t.posts[0]?.pid ?? ''}`, right: [h('button', { type: 'button', class: 'ab-iconbtn', 'aria-label': 'Menu', onclick: () => threadMenu(t) }, icon('more'))], titleCls: 'is-board is-small' });
   return [head, body, jump, toolbar];
 }
@@ -1743,6 +1950,7 @@ function scrollToDivider(body) {
 function viewNew() {
   const b = S.board, Lb = UI[b];
   const d = ui.newDraft[b] || (ui.newDraft[b] = { title: '', body: '' });
+  if (b === 'qoo' && !QOO_CATS.includes(d.cat)) d.cat = QOO_CATS[0];
   const remembered = S.names[b] || {};
   const bd = boardDef(b, curSub(b));
   const name = h('input', { class: 'ab-input', type: 'text', maxLength: 40, placeholder: anonOf(b, bd), value: d.name ?? remembered.name ?? '', autocomplete: 'off' });
@@ -1760,21 +1968,42 @@ function viewNew() {
   ta.addEventListener('input', () => { d.body = ta.value; });
   const submit = () => {
     const tt = oneLine(title.value).slice(0, 96), text = clean(ta.value);
-    if (b === '2ch' && !tt) { toast(Lb.needTitle); title.focus(); return; }
+    if (b !== '4ch' && !tt) { toast(Lb.needTitle); title.focus(); return; }
     if (!text) { toast(Lb.needBody); ta.focus(); return; }
     const now = forumNow();
     const t = { id: uuid(), board: b, sub: bd.id, title: tt, created: now, bumped: now, userUid: makeUid(), unread: 0, posts: [] };
-    addUserPost(t, { name: name.value, mail: mail.value, text });
+    if (b === 'qoo') t.cat = d.cat;
+    addUserPost(t, b === 'qoo' ? { name: '', mail: '', text } : { name: name.value, mail: mail.value, text });
     S.threads.push(t);
     S.selected = t.id;
-    ui.newDraft[b] = { title: '', body: '' };
+    ui.newDraft[b] = { title: '', body: '', cat: d.cat };
     S.sub[b] = bd.id;
     ui.dividerAt = null;
     go('thread', { scroll: 'top' });
     if (S.autoFetch) summon(t.id);
   };
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); } });
-  const form = b === '2ch'
+  const cats = h('div', { class: 'ab-qcats', role: 'radiogroup', 'aria-label': Lb.fCat });
+  if (b === 'qoo') {
+    for (const c of QOO_CATS) {
+      const btn = h('button', { type: 'button', role: 'radio', class: 'ab-qcat' + (d.cat === c ? ' is-on' : ''), 'aria-checked': String(d.cat === c) }, c);
+      btn.addEventListener('click', () => {
+        d.cat = c;
+        for (const x of cats.children) { const on = x === btn; x.classList.toggle('is-on', on); x.setAttribute('aria-checked', String(on)); }
+      });
+      cats.append(btn);
+    }
+  }
+  const form = b === 'qoo'
+    ? h('div', { class: 'ab-form ab-form-qoo' },
+      field(Lb.fBoard, boardBtn),
+      h('div', { class: 'ab-field' }, h('span', { class: 'ab-field-label' }, Lb.fCat), cats),
+      field(Lb.fTitle, title),
+      field(Lb.fBody, ta, 'is-body'),
+      h('p', { class: 'ab-qform-as' }, `${Lb.defaultName}(으)로 등록돼요`),
+      h('div', { class: 'ab-form-actions' }, h('button', { type: 'button', class: 'ab-btn ab-btn-primary', onclick: submit }, Lb.submitThread)),
+      autoFetchRow(Lb))
+    : b === '2ch'
     ? h('div', { class: 'ab-form ab-form-2ch' },
       field('板', boardBtn),
       field(Lb.fTitle, title),
@@ -1997,6 +2226,7 @@ function viewSettings() {
     group('论坛',
       row('2ch 回复语言', seg([['auto', '日本語'], ['zh', '中文'], ['en', 'English']], S.lang['2ch'], v => { S.lang['2ch'] = v; save(); })),
       row('4chan 回复语言', seg([['auto', 'English'], ['zh', '中文'], ['ja', '日本語']], S.lang['4ch'], v => { S.lang['4ch'] = v; save(); })),
+      row('더쿠 回复语言', seg([['auto', '한국어'], ['zh', '中文'], ['en', 'English']], S.lang.qoo, v => { S.lang.qoo = v; save(); })),
       row('配色', seg([['classic', '经典'], ['dark', '夜间'], ['auto', '跟随系统']], S.theme, v => { S.theme = v; save(); syncRootAttrs(); }))),
     group('网友回复',
       row('网友语气', seg(TONE_OPTIONS, toneOf(), v => { S.tone = v; save(); }), '温和：基本友善，会帮你出主意；普通：有好有坏，偶尔吐槽；毒舌：原汁原味的匿名版，嘴很毒'),
@@ -2014,7 +2244,7 @@ function viewSettings() {
       row('全部帖子', h('button', {
         type: 'button', class: 'ab-btn is-danger',
         onclick: async () => {
-          if (!(await confirmDialog('删除两个论坛里的全部帖子？此操作无法撤销，建议先导出备份。', '全部删除', '取消'))) return;
+          if (!(await confirmDialog('删除所有论坛里的全部帖子？此操作无法撤销，建议先导出备份。', '全部删除', '取消'))) return;
           S.threads = []; S.selected = null; save(); render({ scroll: 'keep' }); updateBadge(); toast('已清空');
         },
       }, '清空'), `共 ${S.threads.length} 个帖子`)),

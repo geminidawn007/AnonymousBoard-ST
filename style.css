@@ -1,4 +1,4 @@
-/* Anonymous Board v0.2 — every selector is scoped to .ab-root so nothing leaks into SillyTavern. */
+/* Anonymous Board v0.3 — every selector is scoped to .ab-root so nothing leaks into SillyTavern. */
 
 /* ================================================================ tokens */
 .ab-root {
@@ -6,6 +6,7 @@
   --font-2ch: "MS PGothic", "ＭＳ Ｐゴシック", "IPAMonaPGothic", "Mona", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Noto Sans CJK JP", "Meiryo", sans-serif;
   --font-4ch: arial, helvetica, "Liberation Sans", "Noto Sans", sans-serif;
   --font-4ch-title: Tahoma, Verdana, "Segoe UI", "DejaVu Sans", sans-serif;
+  --font-qoo: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", "Nanum Gothic", -apple-system, system-ui, sans-serif;
   position: static;
   width: 0;
   height: 0;
@@ -95,6 +96,29 @@
   --postblock-bg: #282a2e; --postblock-text: #c5c8c6; --postblock-line: #111;
   --toyou: #33363b; --sheet: #1d1f21;
   --fab-glow: rgba(129, 162, 190, .6);
+}
+/* 더쿠 (theqoo) — clean white community board: grey tags, blue links, orange comment counts */
+.ab-root[data-board="qoo"][data-theme="classic"] {
+  --page: #fff; --text: #222; --meta: #555; --muted: #868e96;
+  --bar: #fff; --bar-text: #222; --nav: #fff; --line: #e9ecef;
+  --title: #222; --name: #495057; --link: #2a7fa8; --dead: #adb5bd;
+  --accent: #2a7fa8; --accent-text: #fff; --badge: #e0573a; --count: #e0573a;
+  --tag-bg: #f1f3f5; --tag-text: #495057; --op: #2a7fa8; --rowline: #f1f3f5;
+  --field: #fff; --field-line: #ced4da; --focus-ring: rgba(42, 127, 168, .2);
+  --btn-bg: linear-gradient(#fff, #f1f3f5); --btn-line: #ced4da; --btn-text: #222;
+  --you-mark: #2a7fa8; --toyou: #eef6fb; --sheet: #f8f9fa;
+  --fab-glow: rgba(42, 127, 168, .55);
+}
+.ab-root[data-board="qoo"][data-theme="dark"] {
+  --page: #16181b; --text: #e4e6e8; --meta: #c0c4c8; --muted: #8d949b;
+  --bar: #1d2024; --bar-text: #ececec; --nav: #1d2024; --line: #2c3035;
+  --title: #f1f3f5; --name: #b5bcc3; --link: #6cb6dc; --dead: #6c737a;
+  --accent: #4aa3cf; --accent-text: #0d1114; --badge: #ff7a5c; --count: #ff8a6a;
+  --tag-bg: #2a2e33; --tag-text: #c8ced4; --op: #6cb6dc; --rowline: #24282c;
+  --field: #22262b; --field-line: #3c4148; --focus-ring: rgba(74, 163, 207, .3);
+  --btn-bg: linear-gradient(#33373d, #2a2e33); --btn-line: #44494f; --btn-text: #eee;
+  --you-mark: #4aa3cf; --toyou: #1b2830; --sheet: #1a1d20;
+  --fab-glow: rgba(74, 163, 207, .55);
 }
 
 /* ================================================================ reset (beats SillyTavern's global element rules) */
@@ -226,6 +250,9 @@
   color: var(--title); font: 700 23px/1.1 var(--font-4ch-title); letter-spacing: -1.6px;
 }
 .ab-root[data-board="4ch"] .ab-appbar-title.is-small .ab-appbar-main { font-size: 18px; letter-spacing: -1px; }
+.ab-root[data-board="qoo"] .ab-appbar { font-family: var(--font-qoo); }
+.ab-root[data-board="qoo"] .ab-appbar-title.is-board .ab-appbar-main { font: 800 18px/1.2 var(--font-qoo); letter-spacing: -.3px; }
+.ab-root[data-board="qoo"] .ab-appbar-title.is-small .ab-appbar-main { font-size: 16px; }
 .ab-root[data-board="4ch"] .ab-appbar-title.is-postform .ab-appbar-main { font-size: 18px; letter-spacing: -.8px; }
 .ab-appbar-title.is-thread .ab-appbar-main {
   color: var(--title); font-family: var(--font-2ch); font-size: 15px; font-weight: 400;
@@ -332,6 +359,47 @@
 .ab-r4 { flex: 0 1 auto; min-width: 0; max-width: 100%; padding: 4px 8px 2px; background: var(--reply-bg); border-right: 1px solid var(--reply-line); border-bottom: 1px solid var(--reply-line); }
 .ab-r4.to-you { background: var(--toyou); }
 
+/* 더쿠: list */
+.ab-list-qoo { font-family: var(--font-qoo); }
+.ab-qlist { list-style: none; margin: 0; padding: 0; }
+.ab-qrow { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; color: var(--text); }
+.ab-qrow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ab-qrow-title { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; letter-spacing: -.2px; }
+.ab-qrow-count { color: var(--count); font-weight: 700; font-size: 13px; }
+.ab-qrow-meta { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 11.5px; color: var(--muted); }
+.ab-qtag { display: inline-block; padding: 1px 6px; border-radius: 3px; background: var(--tag-bg); color: var(--tag-text); font-size: 11.5px; font-weight: 600; line-height: 1.6; vertical-align: 1px; white-space: nowrap; }
+
+/* 더쿠: article + comments */
+.ab-thread-qoo { padding: 0 0 18px; font-family: var(--font-qoo); font-size: 14.5px; line-height: 1.6; color: var(--text); letter-spacing: -.1px; }
+.ab-qa { padding: 14px 14px 18px; border-bottom: 8px solid var(--rowline); }
+.ab-qa-headline .ab-qtag { margin-bottom: 6px; }
+.ab-qa-title { margin: 0; font: 700 18px/1.4 var(--font-qoo); color: var(--title); letter-spacing: -.4px; overflow-wrap: anywhere; }
+.ab-qa-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0 6px; margin: 8px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.ab-qa-name { color: var(--name); font-weight: 600; }
+.ab-qa-sep { opacity: .6; }
+.ab-qa-more { margin-left: auto; padding: 0 6px; font-size: 17px; line-height: 1; color: var(--muted); }
+.ab-qa-body { font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.ab-qa.is-del .ab-qa-body { color: var(--muted); }
+.ab-qc-title { padding: 12px 14px 8px; font-size: 13.5px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--line); }
+.ab-qc-title b { color: var(--count); }
+.ab-qc { position: relative; padding: 10px 14px 11px; border-bottom: 1px solid var(--line); }
+.ab-qc-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0 6px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.ab-qc-no { min-width: 18px; color: var(--accent); font-weight: 700; font-size: 12.5px; }
+.ab-qc-name { color: var(--name); font-weight: 600; }
+.ab-qchip { padding: 0 5px; border-radius: 3px; border: 1px solid var(--op); color: var(--op); font-size: 10.5px; font-weight: 700; line-height: 1.5; }
+.ab-qc-rc { margin-left: auto; padding: 0 2px; color: var(--accent); font-size: 11.5px; }
+.ab-qc-body { margin-top: 3px; overflow-wrap: anywhere; }
+.ab-qc.is-you { box-shadow: inset 3px 0 0 var(--you-mark); }
+.ab-qc.to-you { background: var(--toyou); }
+.ab-qc.is-del .ab-qc-body { color: var(--muted); }
+.ab-thread-qoo .ab-q { color: var(--link); font-weight: 600; text-decoration: none; }
+.ab-thread-qoo .ab-q.is-dead { color: var(--dead); font-weight: 400; }
+.ab-qop { color: var(--op); font-weight: 600; }
+.ab-thread-qoo .ab-note-inline { margin: 18px 14px; font-size: 13.5px; }
+.ab-pop.ab-thread-qoo { padding: 0; }
+.ab-pop.ab-thread-qoo .ab-qa { border-bottom-width: 1px; padding-bottom: 12px; }
+.ab-pop.ab-thread-qoo > :last-child { border-bottom: 0; }
+
 /* shared thread furniture */
 .ab-divider { display: flex; align-items: center; gap: 8px; margin: 10px 12px; color: var(--title); font: 600 12px/1 var(--ui-font); }
 .ab-thread-4ch .ab-divider { margin: 10px 4px; color: var(--subject); }
@@ -375,6 +443,12 @@
 .ab-input:focus, .ab-input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
 .ab-ta { min-height: 110px; resize: vertical; }
 .ab-form-2ch .ab-input { border-radius: 2px; font-family: var(--font-2ch); }
+.ab-form-qoo { font-family: var(--font-qoo); }
+.ab-form-qoo .ab-input { border-radius: 6px; font-family: var(--font-qoo); }
+.ab-qcats { display: flex; flex-wrap: wrap; gap: 6px; }
+.ab-qcat { padding: 5px 11px; border-radius: 15px; border: 1px solid var(--field-line); background: var(--field); color: var(--text); font-size: 13px; line-height: 1.2; }
+.ab-qcat.is-on { border-color: var(--accent); background: var(--accent); color: var(--accent-text); font-weight: 700; }
+.ab-qform-as { margin: 0; font-size: 12px; color: var(--muted); }
 .ab-form-4ch { gap: 2px; font-family: var(--font-4ch); font-size: 13px; }
 .ab-pf-row { display: flex; align-items: stretch; gap: 2px; }
 .ab-postblock {
@@ -561,13 +635,15 @@
 .ab-root.is-compact .ab-input { font-size: 16px; } /* 16px stops iOS from zooming into the field */
 .ab-root.is-compact .ab-thread-2ch { font-size: 15px; }
 .ab-root.is-compact .ab-thread-4ch { font-size: 14px; }
+.ab-root.is-compact .ab-thread-qoo { font-size: 15px; }
 
 /* hover only where a real pointer can hover, so taps on phones never leave a stuck highlight */
 @media (hover: hover) {
   .ab-fab:not(.is-dragging):hover .ab-fab-face { opacity: 1; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 -7px 14px rgba(0, 0, 0, .2), 0 8px 22px rgba(0, 0, 0, .3), 0 0 22px -1px var(--fab-glow); }
   .ab-iconbtn:hover { background: var(--hover); }
   .ab-tab:hover, .ab-tool:hover { background: var(--hover); }
-  .ab-subject:hover { background: var(--hover); }
+  .ab-subject:hover, .ab-qrow:hover { background: var(--hover); }
+  .ab-qc-no:hover, .ab-qa-more:hover { text-decoration: underline; }
   .ab-cat:hover .ab-cat-thumb { box-shadow: 0 0 0 1px var(--reply-line), 0 3px 10px rgba(0, 0, 0, .25); }
   .ab-p2-no:hover { text-decoration: underline; }
   .ab-p4-no:hover { color: var(--link); }
